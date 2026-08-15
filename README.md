@@ -153,7 +153,7 @@ Copy `.env.example` values into a local `.env` file and update as needed.
 ### 3. Start PostgreSQL with Docker
 
 ```bash
-docker compose up -d
+npm run db:start
 ```
 
 ### 4. Generate Prisma client
@@ -180,6 +180,18 @@ npm run prisma:seed
 npm run dev
 ```
 
+### Development seed credentials
+
+Manager
+email: `manager@shiftflow.dev`
+password: `DevelopmentPassword123!`
+
+Employee
+email: `maya@shiftflow.dev`
+password: `DevelopmentPassword123!`
+
+These credentials are for local development only.
+
 ## Environment Variables
 
 ```env
@@ -205,13 +217,23 @@ npm run test:e2e
 
 Playwright E2E runs assume:
 
-- the database is migrated
+- PostgreSQL is running via Docker
+- Prisma migrations have been applied
 - the seed has been executed
-- `E2E_READY=1` is set
+
+Recommended local verification flow:
+
+```bash
+npm run db:start
+npm run prisma:migrate
+npm run prisma:seed
+npm run test
+npm run test:e2e
+```
 
 ## Docker
 
-Use `docker compose up -d` to run PostgreSQL locally.
+Use `npm run db:start` to run PostgreSQL locally and `npm run db:stop` to stop it.
 
 ## Deployment
 

@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { StatusMessage } from "@/components/ui/status-message";
 import { deactivateEmployee } from "@/features/employees/actions";
 import { getEmployeeById } from "@/features/employees/queries";
+import { isAssignmentActive } from "@/features/assignments/utils";
 import { requireEmployeeSelf, requireUser } from "@/lib/auth";
 import { formatDateTime, getQueryStringMessage } from "@/lib/utils";
 
@@ -33,8 +34,19 @@ export default async function EmployeeDetailPage({ params, searchParams }: Emplo
   const error = getQueryStringMessage(resolvedSearchParams.error);
   const success = getQueryStringMessage(resolvedSearchParams.success);
   const now = new Date();
-  const upcomingAssignments = employee.assignments.filter((assignment) => assignment.shift.startTime >= now);
-  const pastAssignments = employee.assignments.filter((assignment) => assignment.shift.startTime < now);
+  const upcomingAssignments = employee.assignments.filter(
+    (assignment) =>
+      isAssignmentActive(assignment.status) &&
+      assignment.shift.startTime >= now &&
+      !["CANCELLED", "COMPLETED"].includes(assignment.shift.status) &&
+      !["CANCELLED", "COMPLETED"].includes(assignment.shift.event.status),
+  );
+  const pastAssignments = employee.assignments.filter(
+    (assignment) =>
+      assignment.shift.startTime < now ||
+      assignment.shift.status === "COMPLETED" ||
+      assignment.shift.event.status === "COMPLETED",
+  );
 
   return (
     <div className="space-y-8">

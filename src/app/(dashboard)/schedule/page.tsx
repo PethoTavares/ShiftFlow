@@ -1,42 +1,14 @@
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { listScheduleShifts } from "@/features/schedule/queries";
 import { requireUser } from "@/lib/auth";
-import { db } from "@/lib/db";
 import { formatDate, formatDateTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
 export default async function SchedulePage() {
   const session = await requireUser();
-  const shifts = await db.shift.findMany({
-    where:
-      session.user.role === "MANAGER"
-        ? {
-            startTime: {
-              gte: new Date(),
-            },
-          }
-        : {
-            startTime: {
-              gte: new Date(),
-            },
-            assignments: {
-              some: {
-                employeeId: session.user.employeeId ?? "",
-                status: {
-                  in: ["ASSIGNED", "CONFIRMED"],
-                },
-              },
-            },
-          },
-    orderBy: {
-      startTime: "asc",
-    },
-    include: {
-      event: true,
-      assignments: true,
-    },
-  });
+  const shifts = await listScheduleShifts(session.user.role, session.user.employeeId);
 
   const groups = new Map<string, typeof shifts>();
 

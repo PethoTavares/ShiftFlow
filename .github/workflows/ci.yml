@@ -7,6 +7,20 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: shiftflow
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d shiftflow"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/shiftflow?schema=public
       AUTH_SECRET: ci-test-secret
@@ -21,6 +35,7 @@ jobs:
       - run: npm --version
       - run: npm install --no-audit --no-fund
       - run: npm run prisma:generate
+      - run: npm run prisma:migrate:deploy
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test

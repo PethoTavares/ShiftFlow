@@ -7,6 +7,45 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { signInSchema } from "@/features/auth/schema";
 
+export async function authenticateUserByCredentials(credentials: unknown) {
+  const parsed = signInSchema.safeParse(credentials);
+
+  if (!parsed.success) {
+    return null;
+  }
+
+  const user = await db.user.findUnique({
+    where: {
+      email: parsed.data.email,
+    },
+    include: {
+      employee: true,
+    },
+  });
+
+  if (!user) {
+    return null;
+  }
+
+  if (user.role === "EMPLOYEE" && user.employee?.status !== "ACTIVE") {
+    return null;
+  }
+
+  const passwordMatches = await compare(parsed.data.password, user.passwordHash);
+
+  if (!passwordMatches) {
+    return null;
+  }
+
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    employeeId: user.employee?.id ?? null,
+  };
+}
+
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
@@ -22,42 +61,7 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const parsed = signInSchema.safeParse(credentials);
-
-        if (!parsed.success) {
-          return null;
-        }
-
-        const user = await db.user.findUnique({
-          where: {
-            email: parsed.data.email,
-          },
-          include: {
-            employee: true,
-          },
-        });
-
-        if (!user) {
-          return null;
-        }
-
-        if (user.role === "EMPLOYEE" && user.employee?.status !== "ACTIVE") {
-          return null;
-        }
-
-        const passwordMatches = await compare(parsed.data.password, user.passwordHash);
-
-        if (!passwordMatches) {
-          return null;
-        }
-
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          employeeId: user.employee?.id ?? null,
-        };
+        return authenticateUserByCredentials(credentials);
       },
     }),
   ],

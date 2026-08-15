@@ -136,10 +136,6 @@ export default async function ShiftDetailPage({ params, searchParams }: ShiftDet
                 ))}
               </select>
             </div>
-            <label className="flex items-center gap-2 text-sm text-[var(--color-muted-foreground)]">
-              <input type="checkbox" name="overrideCapacity" />
-              Allow over-capacity assignment
-            </label>
             <SubmitAssignmentButton />
           </form>
         </div>

@@ -48,7 +48,7 @@ export async function listShiftEvents() {
   return db.event.findMany({
     where: {
       status: {
-        not: "CANCELLED",
+        in: ["DRAFT", "UPCOMING", "ACTIVE"],
       },
     },
     orderBy: {

@@ -1,22 +1,42 @@
 import { addDays } from "date-fns";
 
 import { db } from "@/lib/db";
+import { ACTIVE_ASSIGNMENT_STATUSES, isAssignmentActive } from "@/features/assignments/utils";
+
+type ShiftWithAssignments = {
+  requiredWorkers: number;
+  assignments: { status: "ASSIGNED" | "CONFIRMED" | "DECLINED" | "COMPLETED" | "CANCELLED" }[];
+};
+
+export function calculateOpenPositions(shifts: ShiftWithAssignments[]) {
+  return shifts.reduce((sum, shift) => {
+    const activeAssignmentCount = shift.assignments.filter((assignment) => isAssignmentActive(assignment.status)).length;
+    const openPositionsForShift = Math.max(shift.requiredWorkers - activeAssignmentCount, 0);
+    return sum + openPositionsForShift;
+  }, 0);
+}
 
 export async function getManagerDashboardData() {
   const now = new Date();
   const nextThirtyDays = addDays(now, 30);
 
-  const [activeEmployees, upcomingEvents, upcomingShifts, openPositions, recentEvents, recentShifts] =
+  const [activeEmployees, upcomingEvents, upcomingShifts, recentEvents, recentShifts] =
     await Promise.all([
       db.employee.count({ where: { status: "ACTIVE" } }),
       db.event.count({ where: { startDate: { gte: now }, status: { in: ["UPCOMING", "ACTIVE", "DRAFT"] } } }),
-      db.shift.count({ where: { startTime: { gte: now }, status: { in: ["OPEN", "FULL", "IN_PROGRESS"] } } }),
-      db.shift.aggregate({
-        _sum: { requiredWorkers: true },
-        where: { startTime: { gte: now, lte: nextThirtyDays }, status: { in: ["OPEN", "FULL", "IN_PROGRESS"] } },
+      db.shift.count({
+        where: {
+          startTime: { gte: now },
+          status: { in: ["OPEN", "FULL", "IN_PROGRESS"] },
+          event: {
+            status: {
+              in: ["DRAFT", "UPCOMING", "ACTIVE"],
+            },
+          },
+        },
       }),
       db.event.findMany({
-        where: { startDate: { gte: now } },
+        where: { startDate: { gte: now }, status: { in: ["DRAFT", "UPCOMING", "ACTIVE"] } },
         orderBy: { startDate: "asc" },
         take: 5,
         include: {
@@ -28,7 +48,15 @@ export async function getManagerDashboardData() {
         },
       }),
       db.shift.findMany({
-        where: { startTime: { gte: now } },
+        where: {
+          startTime: { gte: now, lte: nextThirtyDays },
+          status: { in: ["OPEN", "FULL", "IN_PROGRESS"] },
+          event: {
+            status: {
+              in: ["DRAFT", "UPCOMING", "ACTIVE"],
+            },
+          },
+        },
         orderBy: { startTime: "asc" },
         take: 6,
         include: {
@@ -38,17 +66,14 @@ export async function getManagerDashboardData() {
       }),
     ]);
 
-  const openWorkerCount = recentShifts.reduce((sum, shift) => {
-    const openPositionsForShift = Math.max(shift.requiredWorkers - shift.assignments.length, 0);
-    return sum + openPositionsForShift;
-  }, 0);
+  const openWorkerCount = calculateOpenPositions(recentShifts);
 
   return {
     stats: {
       activeEmployees,
       upcomingEvents,
       upcomingShifts,
-      openPositions: openPositions._sum.requiredWorkers ?? openWorkerCount,
+      openPositions: openWorkerCount,
     },
     events: recentEvents,
     shifts: recentShifts,
@@ -61,10 +86,18 @@ export async function getEmployeeDashboardData(employeeId: string) {
   const assignments = await db.shiftAssignment.findMany({
     where: {
       employeeId,
-      status: { in: ["ASSIGNED", "CONFIRMED"] },
+      status: { in: ACTIVE_ASSIGNMENT_STATUSES },
       shift: {
         startTime: {
           gte: now,
+        },
+        status: {
+          in: ["OPEN", "FULL", "IN_PROGRESS"],
+        },
+        event: {
+          status: {
+            in: ["DRAFT", "UPCOMING", "ACTIVE"],
+          },
         },
       },
     },
