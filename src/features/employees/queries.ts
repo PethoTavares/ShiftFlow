@@ -1,13 +1,35 @@
 import { db } from "@/lib/db";
+import { ACTIVE_ASSIGNMENT_STATUSES } from "@/features/assignments/utils";
 
-export async function listEmployees(status?: string) {
+export async function listEmployees(status?: string, search?: string) {
   return db.employee.findMany({
-    where:
-      status && status !== "ALL"
+    where: {
+      ...(status && status !== "ALL"
         ? {
             status: status as "ACTIVE" | "INACTIVE",
           }
-        : undefined,
+        : {}),
+      ...(search
+        ? {
+            user: {
+              OR: [
+                {
+                  name: {
+                    contains: search,
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  email: {
+                    contains: search,
+                    mode: "insensitive",
+                  },
+                },
+              ],
+            },
+          }
+        : {}),
+    },
     orderBy: {
       createdAt: "desc",
     },
@@ -15,9 +37,20 @@ export async function listEmployees(status?: string) {
       user: true,
       assignments: {
         where: {
+          status: {
+            in: ACTIVE_ASSIGNMENT_STATUSES,
+          },
           shift: {
             startTime: {
               gte: new Date(),
+            },
+            status: {
+              in: ["OPEN", "FULL", "IN_PROGRESS"],
+            },
+            event: {
+              status: {
+                in: ["DRAFT", "UPCOMING", "ACTIVE"],
+              },
             },
           },
         },

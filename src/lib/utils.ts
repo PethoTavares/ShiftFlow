@@ -14,6 +14,22 @@ export function formatDateTime(value: Date | string) {
   return format(new Date(value), "MMM d, yyyy 'at' h:mm a");
 }
 
+export function formatTime(value: Date | string) {
+  return format(new Date(value), "h:mm a");
+}
+
+export function formatDateRange(start: Date | string, end: Date | string) {
+  return `${formatDate(start)} - ${formatDate(end)}`;
+}
+
+export function formatTimeRange(start: Date | string, end: Date | string) {
+  return `${formatTime(start)} - ${formatTime(end)}`;
+}
+
+export function formatDateHeading(value: Date | string) {
+  return format(new Date(value), "EEEE, MMM d");
+}
+
 export function getQueryStringMessage(value: string | string[] | undefined) {
   if (!value) {
     return null;

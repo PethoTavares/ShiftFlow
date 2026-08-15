@@ -1,59 +1,110 @@
 # ShiftFlow
 
-ShiftFlow is a production-style workforce and event staffing management SaaS built with Next.js App Router, TypeScript, PostgreSQL, Prisma, Auth.js, and Zod.
+A workforce and event staffing management platform built with Next.js, TypeScript, PostgreSQL, Prisma, and Auth.js.
 
 ## Overview
 
-Staffing teams need a clean way to manage events, build shifts, assign employees, and keep staffing coverage visible. ShiftFlow focuses on that operational workflow with server-side authorization, business-rule validation, and a feature-oriented codebase that is easy to explain in a technical interview.
+ShiftFlow helps operations teams plan events, create shifts, assign staff, and keep workforce scheduling visible from one application.
 
-## Problem
+The project is intentionally built as a portfolio-ready full-stack SaaS MVP:
 
-Operational staffing work often lives across spreadsheets, chat threads, and ad hoc docs. That makes it hard to answer basic questions:
+- real PostgreSQL persistence
+- server-side authorization
+- practical staffing business rules
+- browser-level E2E coverage
+- clear, interview-friendly architecture
 
-- Which events are upcoming?
-- Which shifts are understaffed?
-- Which employees are active?
-- Which assignments overlap?
+## The Problem
 
-## Solution
+Event staffing usually breaks down when teams manage work across spreadsheets, chat threads, and ad hoc notes.
 
-ShiftFlow centralizes event planning and staffing operations in one dashboard:
+That creates real operational problems:
 
-- Managers create and manage events
-- Managers create shifts with capacity constraints
-- Managers create employee accounts and deactivate employees safely
-- Managers assign employees to shifts with overlap and capacity validation
-- Employees view only their own upcoming shifts and event details
+- managers cannot quickly see open staffing positions
+- employees can accidentally be double-booked
+- inactive employees can remain in scheduling flows
+- cancelled work can stay visible in upcoming schedules
+- role-specific information can leak without strict authorization
 
-## Features
+## The Solution
 
-- Role-based authentication with manager and employee roles
-- Protected App Router pages and server-side authorization checks
-- Events, employees, shifts, assignments, schedule, and dashboard views
-- Zod validation for auth and core business forms
-- Assignment conflict handling for duplicates, inactive employees, overlap, and capacity
-- Prisma seed data for a realistic development environment
+ShiftFlow centralizes staffing operations in one workflow:
 
-## Screenshots
+- managers create employees, events, and shifts
+- managers assign staff with overlap and capacity protection
+- staffing state updates when assignments are added or removed
+- employees see only their own upcoming work
+- lifecycle rules keep cancelled and completed work out of the wrong views
 
-Add screenshots here after running the seeded app locally.
+## Core Features
+
+Implemented today:
+
+- role-based authentication
+- manager and employee accounts
+- employee management
+- event management
+- shift scheduling
+- staffing assignments
+- shift capacity enforcement
+- overlapping shift prevention
+- cancelled/completed lifecycle handling
+- employee upcoming schedule views
+- responsive authenticated UI
+- automated unit, integration, and E2E testing
+- GitHub Actions CI
+
+## Engineering Highlights
+
+- Server-side authorization protects manager-only pages and mutations.
+- Passwords are hashed with `bcryptjs`.
+- Shift assignments are protected by both application logic and a database-level unique constraint.
+- Zod validates auth and business-form payloads.
+- Overlap detection runs during assignment creation on the server.
+- Staffing capacity is enforced from active assignments only.
+- Employee deactivation is blocked when future active work still exists.
+- Assignment removal recalculates shift staffing state immediately.
+- Feature-oriented modules keep route composition, business logic, and persistence concerns understandable.
 
 ## Tech Stack
 
-- Next.js 16 App Router
-- React 19
+- Next.js 16.3.1
+- React 19.2.8
 - TypeScript 5
 - Tailwind CSS 4
-- PostgreSQL
-- Prisma ORM 7 with `prisma-client` and `@prisma/adapter-pg`
+- PostgreSQL 17 via Docker Compose
+- Prisma 7.9.1 with `@prisma/adapter-pg`
 - Auth.js via `next-auth`
 - Zod
 - Vitest
 - Playwright
-- Docker Compose
 - GitHub Actions
 
 ## Architecture
+
+Typical request flow:
+
+```text
+Next.js App Router page
+↓
+Server Component / Form
+↓
+Server Action or Feature Query
+↓
+Zod validation
+↓
+Authorization helper
+↓
+Business rules
+↓
+Prisma
+↓
+PostgreSQL
+```
+
+Not every route uses every layer, but this is the dominant pattern in the application.
+
+## Project Structure
 
 ```text
 src/
@@ -70,6 +121,8 @@ src/
     dashboard/
     employees/
     events/
+    schedule/
+    settings/
     shifts/
   lib/
     auth.ts
@@ -77,41 +130,18 @@ src/
     generated/prisma/
     utils.ts
 prisma/
+  migrations/
+  schema.prisma
+  seed.ts
 tests/
+  e2e/
+  integration/
+  unit/
 ```
-
-### Why feature-oriented architecture
-
-Business logic is grouped by domain so events, employees, shifts, and assignments can evolve independently without turning `app/` or `lib/` into dumping grounds. Shared UI stays in `components`, route ownership stays in `app`, and domain logic stays close to the feature that uses it.
-
-### Why PostgreSQL
-
-ShiftFlow models relational data with real constraints:
-
-- users to employees
-- events to shifts
-- shifts to assignments
-
-PostgreSQL fits that shape well and supports the indexing and integrity rules the app needs in production.
-
-### How authorization works
-
-- Authentication uses email/password credentials with hashed passwords
-- Sessions include `id`, `name`, `email`, `role`, and `employeeId`
-- Server helpers such as `requireUser`, `requireManager`, and `requireEmployeeSelf` protect routes and mutations
-- UI visibility is helpful, but access control is enforced on the server
-
-### How overlapping shifts are prevented
-
-When a manager assigns an employee to a shift, the server loads the employee’s active assignments and checks the target shift window against existing shift windows. If any overlap is found, the assignment is rejected by default.
-
-### Why employees are deactivated instead of deleted
-
-Deleting employees would destroy staffing history and make past assignment reporting less trustworthy. Deactivation preserves historical integrity while preventing new work from being assigned to inactive staff.
 
 ## Database Model
 
-### Core entities
+### Entities
 
 - `User`
 - `Employee`
@@ -119,80 +149,86 @@ Deleting employees would destroy staffing history and make past assignment repor
 - `Shift`
 - `ShiftAssignment`
 
-### Relationships
+### Relationship summary
 
-- A `User` can be a manager or employee
-- An `Employee` belongs to one `User`
-- An `Event` is created by a manager user
-- A `Shift` belongs to one `Event`
-- A `ShiftAssignment` links one employee to one shift
+- A `User` can be a manager or an employee.
+- An `Employee` belongs to one `User`.
+- An `Event` is created by a manager user.
+- A `Shift` belongs to one `Event`.
+- A `ShiftAssignment` joins one employee to one shift.
 
 ### Mermaid ER Diagram
 
 ```mermaid
 erDiagram
-  User ||--o| Employee : "has profile"
-  User ||--o{ Event : "creates"
-  Event ||--o{ Shift : "contains"
-  Employee ||--o{ ShiftAssignment : "receives"
-  Shift ||--o{ ShiftAssignment : "contains"
+  User ||--o| Employee : has_profile
+  User ||--o{ Event : creates
+  Event ||--o{ Shift : contains
+  Employee ||--o{ ShiftAssignment : receives
+  Shift ||--o{ ShiftAssignment : contains
 ```
 
-## Getting Started
+## Local Development
 
-### 1. Install dependencies
+Tested local flow:
 
 ```bash
 npm install
 ```
 
-### 2. Configure environment variables
+Create `.env`:
 
-Copy `.env.example` values into a local `.env` file and update as needed.
-
-### 3. Start PostgreSQL with Docker
+Unix/macOS:
 
 ```bash
-npm run db:start
+cp .env.example .env
 ```
 
-### 4. Generate Prisma client
+Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Start PostgreSQL:
 
 ```bash
-npm run prisma:generate
+npm run db:up
 ```
 
-### 5. Run migrations
+Generate Prisma client:
 
 ```bash
-npm run prisma:migrate
+npm run db:generate
 ```
 
-### 6. Seed the database
+Apply migrations:
 
 ```bash
-npm run prisma:seed
+npm run db:migrate
 ```
 
-### 7. Start the app
+Seed development data:
+
+```bash
+npm run db:seed
+```
+
+Start the app:
 
 ```bash
 npm run dev
 ```
 
-### Development seed credentials
+Stop PostgreSQL when finished:
 
-Manager
-email: `manager@shiftflow.dev`
-password: `DevelopmentPassword123!`
-
-Employee
-email: `maya@shiftflow.dev`
-password: `DevelopmentPassword123!`
-
-These credentials are for local development only.
+```bash
+npm run db:down
+```
 
 ## Environment Variables
+
+Required local variables:
 
 ```env
 DATABASE_URL=
@@ -200,49 +236,122 @@ AUTH_SECRET=
 NEXTAUTH_URL=
 ```
 
-## Database Setup
+The provided `.env.example` uses safe local placeholders only.
 
-The default Docker setup exposes PostgreSQL on `localhost:5432` with:
+## Development Accounts
 
-- database: `shiftflow`
-- user: `postgres`
-- password: `postgres`
+These are development seed credentials only.
+
+Manager:
+
+- email: `manager@shiftflow.dev`
+- password: `DevelopmentPassword123!`
+
+Employee:
+
+- email: `maya@shiftflow.dev`
+- password: `DevelopmentPassword123!`
+
+The seed creates additional fictional employee accounts, events, shifts, and assignments as useful test data.
+
+Important seed context:
+
+- The current environment date is `Saturday, August 15, 2026`.
+- Seeded events and shifts later in August 2026 are intentionally future-dated so upcoming scheduling flows remain testable.
 
 ## Testing
 
+Run quality checks:
+
 ```bash
-npm run test
+npm run lint
+npm run typecheck
+npm test
 npm run test:e2e
 ```
 
-Playwright E2E runs assume:
+### Test layers
 
-- PostgreSQL is running via Docker
-- Prisma migrations have been applied
-- the seed has been executed
+- Unit: auth boundaries and calculation helpers
+- Integration: business rules with a real test database
+- E2E: critical staffing workflow and cancellation lifecycle
 
-Recommended local verification flow:
+### Recommended verification order
 
 ```bash
-npm run db:start
-npm run prisma:migrate
-npm run prisma:seed
-npm run test
+npm run db:up
+npm run db:generate
+npm run db:migrate
+npm run db:seed
+npm run lint
+npm run typecheck
+npm test
 npm run test:e2e
 ```
 
-## Docker
+## CI
 
-Use `npm run db:start` to run PostgreSQL locally and `npm run db:stop` to stop it.
+GitHub Actions currently verifies:
 
-## Deployment
+- dependency installation
+- Prisma generation
+- Prisma migrations
+- lint
+- typecheck
+- Vitest suite
+- production build
 
-For deployment, configure a hosted PostgreSQL instance, set the environment variables, run Prisma migrations, and deploy the Next.js app to your preferred platform.
+E2E is intentionally documented for local execution and is not yet part of CI.
+
+## Prisma Generated Client
+
+The Prisma client is intentionally generated into:
+
+```text
+src/lib/generated/prisma
+```
+
+It remains committed for now because:
+
+- the project imports from that custom output path directly
+- the current generator configuration is not using Prisma's default location
+- keeping it committed avoids breaking the existing working architecture during setup
+
+If this is revisited later, the change should only be made together with a verified generation/setup flow.
+
+## Deployment Requirements
+
+Do not deploy without configuring these production values:
+
+- `DATABASE_URL`
+- `AUTH_SECRET`
+- `NEXTAUTH_URL`
+
+Production notes:
+
+- use a hosted PostgreSQL database
+- run Prisma migrations before serving traffic
+- do not run the development seed automatically in production
+- replace the development Auth secret with a real secret
+
+## Screenshots
+
+### Manager Dashboard
+<!-- Add final screenshot here -->
+
+### Shift Staffing
+<!-- Add final screenshot here -->
+
+### Employee Schedule
+<!-- Add final screenshot here -->
 
 ## Future Improvements
 
-- Employee self-service confirmation or decline flows
-- Richer schedule filters and weekly timeline interactions
-- Audit logging for staffing changes
-- Email notifications for assignments and schedule changes
-- Pagination and search across larger datasets
+Not implemented yet:
+
+- employee availability management
+- assignment confirmation and decline flows
+- notifications
+- richer calendar and schedule views
+- reporting and analytics
+- multi-tenant organization support

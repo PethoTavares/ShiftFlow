@@ -1,16 +1,20 @@
 import Link from "next/link";
 
-import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { StaffingIndicator } from "@/components/ui/staffing-indicator";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { StatusMessage } from "@/components/ui/status-message";
 import { listShifts } from "@/features/shifts/queries";
 import { requireManager } from "@/lib/auth";
-import { formatDateTime, getQueryStringMessage } from "@/lib/utils";
+import { formatDate, formatTimeRange, getQueryStringMessage } from "@/lib/utils";
 
 type ShiftsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+const filters = ["ALL", "OPEN", "FULL", "IN_PROGRESS", "COMPLETED", "CANCELLED"] as const;
 
 export const dynamic = "force-dynamic";
 
@@ -23,68 +27,101 @@ export default async function ShiftsPage({ searchParams }: ShiftsPageProps) {
   const shifts = await listShifts(filter);
 
   return (
-    <div className="space-y-8">
+    <div className="app-shell">
       <PageHeader
         title="Shifts"
-        description="Track staffing coverage, shift capacity, and upcoming work windows."
-        action={
-          <Link href="/shifts/new" className="rounded-xl bg-[var(--color-foreground)] px-4 py-2.5 text-sm font-medium text-white">
-            New shift
-          </Link>
-        }
+        description="Track staffing capacity, shift status, and upcoming operational coverage from one screen."
+        action={<Link href="/shifts/new" className={buttonVariants({})}>New shift</Link>}
       />
       <StatusMessage error={error} success={success} />
+
       <div className="flex flex-wrap gap-2">
-        {["ALL", "OPEN", "FULL", "COMPLETED", "CANCELLED"].map((value) => (
+        {filters.map((value) => (
           <Link
             key={value}
             href={value === "ALL" ? "/shifts" : `/shifts?status=${value}`}
-            className={`rounded-full px-3 py-1.5 text-sm ${filter === value ? "bg-[var(--color-foreground)] text-white" : "border border-[var(--color-border)] bg-white"}`}
+            className={filter === value ? "app-chip app-chip-active" : "app-chip"}
           >
-            {value}
+            {value.replaceAll("_", " ")}
           </Link>
         ))}
       </div>
-      <section className="rounded-3xl border border-[var(--color-border)] bg-white shadow-sm">
+
+      <section className="app-panel overflow-hidden">
         {shifts.length === 0 ? (
           <div className="p-6">
-            <EmptyState title="No shifts found" description="Create a shift to begin assigning staff." />
+            <EmptyState
+              title="No shifts found"
+              description="Create a shift to begin assigning staff."
+              action={<Link href="/shifts/new" className={buttonVariants({ variant: "secondary" })}>Create shift</Link>}
+            />
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead className="border-b border-[var(--color-border)] text-[var(--color-muted-foreground)]">
-                <tr>
-                  <th className="px-6 py-4 font-medium">Shift</th>
-                  <th className="px-6 py-4 font-medium">Event</th>
-                  <th className="px-6 py-4 font-medium">Date / time</th>
-                  <th className="px-6 py-4 font-medium">Staffing</th>
-                  <th className="px-6 py-4 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {shifts.map((shift) => (
-                  <tr key={shift.id} className="border-b border-[var(--color-border)] last:border-b-0">
-                    <td className="px-6 py-4">
-                      <Link href={`/shifts/${shift.id}`} className="font-medium">
-                        {shift.title}
-                      </Link>
-                    </td>
-                    <td className="px-6 py-4 text-[var(--color-muted-foreground)]">{shift.event.name}</td>
-                    <td className="px-6 py-4 text-[var(--color-muted-foreground)]">{formatDateTime(shift.startTime)}</td>
-                    <td className="px-6 py-4 text-[var(--color-muted-foreground)]">
-                      {shift.assignments.filter((assignment) => assignment.status !== "CANCELLED").length} / {shift.requiredWorkers}
-                    </td>
-                    <td className="px-6 py-4">
-                      <Badge variant={shift.status === "FULL" ? "success" : shift.status === "CANCELLED" ? "danger" : "warning"}>
-                        {shift.status}
-                      </Badge>
-                    </td>
+          <>
+            <div className="hidden lg:block">
+              <table className="app-table">
+                <thead>
+                  <tr>
+                    <th>Shift</th>
+                    <th>Event</th>
+                    <th>Date</th>
+                    <th>Staffing</th>
+                    <th>Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {shifts.map((shift) => {
+                    const activeAssignments = shift.assignments.filter((assignment) => assignment.status !== "CANCELLED").length;
+
+                    return (
+                      <tr key={shift.id}>
+                        <td>
+                          <Link href={`/shifts/${shift.id}`} className="block">
+                            <p className="font-medium">{shift.title}</p>
+                            <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
+                              {formatTimeRange(shift.startTime, shift.endTime)}
+                            </p>
+                          </Link>
+                        </td>
+                        <td className="text-[var(--color-muted-foreground)]">{shift.event.name}</td>
+                        <td className="text-[var(--color-muted-foreground)]">{formatDate(shift.startTime)}</td>
+                        <td className="min-w-56">
+                          <StaffingIndicator assigned={activeAssignments} required={shift.requiredWorkers} compact />
+                        </td>
+                        <td>
+                          <StatusBadge status={shift.status} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="space-y-3 p-4 lg:hidden">
+              {shifts.map((shift) => {
+                const activeAssignments = shift.assignments.filter((assignment) => assignment.status !== "CANCELLED").length;
+
+                return (
+                  <Link key={shift.id} href={`/shifts/${shift.id}`} className="app-list-row block">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <p className="font-medium">{shift.title}</p>
+                        <p className="text-sm text-[var(--color-muted-foreground)]">{shift.event.name}</p>
+                        <p className="text-sm text-[var(--color-muted-foreground)]">
+                          {formatDate(shift.startTime)} · {formatTimeRange(shift.startTime, shift.endTime)}
+                        </p>
+                      </div>
+                      <StatusBadge status={shift.status} />
+                    </div>
+                    <div className="mt-4">
+                      <StaffingIndicator assigned={activeAssignments} required={shift.requiredWorkers} compact />
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </>
         )}
       </section>
     </div>

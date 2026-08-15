@@ -2,8 +2,28 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/lib/auth";
+import { buttonVariants } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
+
+const features = [
+  {
+    title: "Event planning",
+    description: "Create events, manage their lifecycle, and keep staffing work attached to a real operational timeline.",
+  },
+  {
+    title: "Shift scheduling",
+    description: "Build shift windows with staffing targets, capacity rules, and clean assignment visibility.",
+  },
+  {
+    title: "Workforce management",
+    description: "Manage employee accounts, prevent scheduling conflicts, and protect sensitive data with role-based access.",
+  },
+  {
+    title: "Operational clarity",
+    description: "Managers see staffing progress while employees only see the work that belongs to them.",
+  },
+];
 
 export default async function HomePage() {
   const session = await auth();
@@ -13,73 +33,62 @@ export default async function HomePage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-6 py-16">
-      <div className="w-full max-w-5xl rounded-3xl border border-[var(--color-border)] bg-white p-8 shadow-sm lg:p-12">
-        <div className="grid gap-12 lg:grid-cols-[1.2fr_0.8fr]">
+    <main className="app-auth-shell">
+      <section className="app-auth-card p-8 lg:p-12">
+        <div className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
           <div className="space-y-8">
-            <div className="inline-flex items-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-1 text-sm font-medium text-[var(--color-muted-foreground)]">
-              ShiftFlow
-            </div>
             <div className="space-y-4">
-              <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-[var(--color-foreground)] sm:text-5xl">
-                Workforce staffing software for events, shifts, and real-world operations.
+              <p className="app-kicker">ShiftFlow</p>
+              <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-[var(--color-foreground)] sm:text-5xl lg:text-6xl">
+                Workforce scheduling without the chaos.
               </h1>
               <p className="max-w-2xl text-lg leading-8 text-[var(--color-muted-foreground)]">
-                Manage events, schedule shifts, assign employees, and keep staffing levels visible from one operational dashboard.
+                Plan events, create shifts, assign staff, and keep workforce operations organized from one secure full-stack application.
               </p>
             </div>
+
             <div className="flex flex-col gap-3 sm:flex-row">
-              <Link
-                href="/sign-in"
-                className="inline-flex items-center justify-center rounded-xl bg-[var(--color-foreground)] px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
-              >
+              <Link href="/sign-up" className={buttonVariants({})}>
+                Get started
+              </Link>
+              <Link href="/sign-in" className={buttonVariants({ variant: "secondary" })}>
                 Sign in
               </Link>
-              <Link
-                href="/sign-up"
-                className="inline-flex items-center justify-center rounded-xl border border-[var(--color-border)] px-5 py-3 text-sm font-medium transition hover:bg-[var(--color-surface-muted)]"
-              >
-                Create manager account
-              </Link>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              {features.map((feature) => (
+                <div key={feature.title} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel-muted)] p-5">
+                  <h2 className="text-base font-semibold">{feature.title}</h2>
+                  <p className="mt-2 text-sm leading-6 text-[var(--color-muted-foreground)]">{feature.description}</p>
+                </div>
+              ))}
             </div>
           </div>
 
-          <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] p-6">
+          <section className="app-panel-muted p-6">
             <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="rounded-2xl border border-[var(--color-border)] bg-white p-4">
-                  <p className="text-sm text-[var(--color-muted-foreground)]">Active employees</p>
-                  <p className="mt-2 text-3xl font-semibold">124</p>
-                </div>
-                <div className="rounded-2xl border border-[var(--color-border)] bg-white p-4">
-                  <p className="text-sm text-[var(--color-muted-foreground)]">Open positions</p>
-                  <p className="mt-2 text-3xl font-semibold">18</p>
-                </div>
+              <div className="space-y-2">
+                <p className="app-kicker">Why it exists</p>
+                <h2 className="text-2xl font-semibold tracking-tight">Built around real staffing constraints</h2>
+              </div>
+              <div className="space-y-4 text-sm leading-7 text-[var(--color-muted-foreground)]">
+                <p>ShiftFlow is designed around the problems operations teams actually hit: overlapping schedules, capacity limits, lifecycle changes, and role-specific access.</p>
+                <p>The product keeps business rules on the server, uses PostgreSQL for real persistence, and includes automated unit, integration, and end-to-end test coverage.</p>
               </div>
               <div className="rounded-2xl border border-[var(--color-border)] bg-white p-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium">Summer Music Festival</p>
-                    <p className="text-sm text-[var(--color-muted-foreground)]">August 21, 2026 • Seattle</p>
-                  </div>
-                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-                    14 / 16 staffed
-                  </span>
-                </div>
-                <div className="mt-4 h-2 rounded-full bg-[var(--color-surface-muted)]">
-                  <div className="h-2 w-[88%] rounded-full bg-[var(--color-foreground)]" />
-                </div>
-              </div>
-              <div className="rounded-2xl border border-dashed border-[var(--color-border)] p-5">
-                <p className="text-sm font-medium">Portfolio-ready MVP foundation</p>
-                <p className="mt-2 text-sm leading-6 text-[var(--color-muted-foreground)]">
-                  Built with Next.js App Router, Prisma, Auth.js, Zod, and production-minded authorization patterns.
-                </p>
+                <p className="app-kicker">Core product capabilities</p>
+                <ul className="mt-4 space-y-3 text-sm text-[var(--color-muted-foreground-strong)]">
+                  <li>Role-based manager and employee accounts</li>
+                  <li>Event, shift, and employee management</li>
+                  <li>Assignment capacity and overlap enforcement</li>
+                  <li>Employee-specific upcoming schedule views</li>
+                </ul>
               </div>
             </div>
           </section>
         </div>
-      </div>
+      </section>
     </main>
   );
 }

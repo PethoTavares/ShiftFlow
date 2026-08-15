@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { StatusMessage } from "@/components/ui/status-message";
+import { isAssignmentActive } from "@/features/assignments/utils";
 import { deactivateEmployee } from "@/features/employees/actions";
 import { getEmployeeById } from "@/features/employees/queries";
-import { isAssignmentActive } from "@/features/assignments/utils";
 import { requireEmployeeSelf, requireUser } from "@/lib/auth";
 import { formatDateTime, getQueryStringMessage } from "@/lib/utils";
 
@@ -49,74 +50,99 @@ export default async function EmployeeDetailPage({ params, searchParams }: Emplo
   );
 
   return (
-    <div className="space-y-8">
+    <div className="app-shell">
       <PageHeader
         title={employee.user.name}
         description={employee.user.email}
         action={
           session.user.role === "MANAGER" ? (
-            <div className="flex flex-wrap gap-3">
-              <Link href={`/employees/${employee.id}/edit`} className="rounded-xl bg-[var(--color-foreground)] px-4 py-2.5 text-sm font-medium text-white">
-                Edit employee
-              </Link>
-            </div>
+            <Link href={`/employees/${employee.id}/edit`} className={buttonVariants({})}>
+              Edit employee
+            </Link>
           ) : null
         }
       />
       <StatusMessage error={error} success={success} />
-      <section className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-3xl border border-[var(--color-border)] bg-white p-6 shadow-sm">
-          <p className="text-sm text-[var(--color-muted-foreground)]">Status</p>
+
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="app-panel-section">
+          <p className="app-kicker">Status</p>
           <div className="mt-3">
-            <Badge variant={employee.status === "ACTIVE" ? "success" : "danger"}>{employee.status}</Badge>
+            <StatusBadge status={employee.status} />
           </div>
         </div>
-        <div className="rounded-3xl border border-[var(--color-border)] bg-white p-6 shadow-sm">
-          <p className="text-sm text-[var(--color-muted-foreground)]">Phone</p>
-          <p className="mt-3 text-lg font-semibold">{employee.phone}</p>
+        <div className="app-panel-section">
+          <p className="app-kicker">Phone</p>
+          <p className="mt-3 text-lg font-semibold">{employee.phone || "Not provided"}</p>
         </div>
-        <div className="rounded-3xl border border-[var(--color-border)] bg-white p-6 shadow-sm">
-          <p className="text-sm text-[var(--color-muted-foreground)]">Upcoming shifts</p>
+        <div className="app-panel-section">
+          <p className="app-kicker">Upcoming shifts</p>
           <p className="mt-3 text-3xl font-semibold">{upcomingAssignments.length}</p>
+        </div>
+        <div className="app-panel-section">
+          <p className="app-kicker">Past shifts</p>
+          <p className="mt-3 text-3xl font-semibold">{pastAssignments.length}</p>
         </div>
       </section>
 
       {session.user.role === "MANAGER" && employee.status === "ACTIVE" ? (
         <ConfirmButton
           action={deactivateEmployee}
-          message="Deactivate this employee? Their assignment history will be preserved."
+          message="Deactivate this employee? Future assignments must be removed first."
           label="Deactivate employee"
-          className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700"
+          variant="destructive"
         >
           <input type="hidden" name="employeeId" value={employee.id} />
         </ConfirmButton>
       ) : null}
 
-      <section className="rounded-3xl border border-[var(--color-border)] bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold">Upcoming shifts</h2>
-        <div className="mt-6 space-y-4">
-          {upcomingAssignments.length === 0 ? (
-            <EmptyState title="No upcoming shifts" description="This employee has no future assignments scheduled." />
-          ) : (
-            upcomingAssignments.map((assignment) => (
-              <div key={assignment.id} className="rounded-2xl border border-[var(--color-border)] p-4">
-                <p className="font-medium">{assignment.shift.title}</p>
-                <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">{assignment.shift.event.name}</p>
-                <p className="mt-3 text-sm text-[var(--color-muted-foreground)]">{formatDateTime(assignment.shift.startTime)}</p>
+      <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <div className="app-panel-section">
+          <h2 className="app-section-heading">Profile</h2>
+          <div className="mt-6 space-y-5">
+            <div>
+              <p className="app-kicker">Name</p>
+              <p className="mt-2 font-medium">{employee.user.name}</p>
+            </div>
+            <div>
+              <p className="app-kicker">Email</p>
+              <p className="mt-2 font-medium">{employee.user.email}</p>
+            </div>
+            <div>
+              <p className="app-kicker">Employment status</p>
+              <div className="mt-2">
+                <StatusBadge status={employee.status} />
               </div>
-            ))
-          )}
+            </div>
+          </div>
+        </div>
+
+        <div className="app-panel-section">
+          <h2 className="app-section-heading">Upcoming shifts</h2>
+          <div className="mt-6 app-card-list">
+            {upcomingAssignments.length === 0 ? (
+              <EmptyState title="No upcoming shifts" description="This employee has no future assignments scheduled." />
+            ) : (
+              upcomingAssignments.map((assignment) => (
+                <div key={assignment.id} className="app-list-row">
+                  <p className="font-medium">{assignment.shift.title}</p>
+                  <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">{assignment.shift.event.name}</p>
+                  <p className="mt-3 text-sm text-[var(--color-muted-foreground)]">{formatDateTime(assignment.shift.startTime)}</p>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </section>
 
-      <section className="rounded-3xl border border-[var(--color-border)] bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold">Past shifts</h2>
-        <div className="mt-6 space-y-4">
+      <section className="app-panel-section">
+        <h2 className="app-section-heading">Past work</h2>
+        <div className="mt-6 app-card-list">
           {pastAssignments.length === 0 ? (
             <EmptyState title="No shift history yet" description="Completed or past assignments will show here." />
           ) : (
             pastAssignments.map((assignment) => (
-              <div key={assignment.id} className="rounded-2xl border border-[var(--color-border)] p-4">
+              <div key={assignment.id} className="app-list-row">
                 <p className="font-medium">{assignment.shift.title}</p>
                 <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">{assignment.shift.event.name}</p>
                 <p className="mt-3 text-sm text-[var(--color-muted-foreground)]">{formatDateTime(assignment.shift.startTime)}</p>

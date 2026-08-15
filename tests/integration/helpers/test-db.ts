@@ -10,7 +10,8 @@ import {
   type UserRole,
 } from "../../../src/lib/generated/prisma/client";
 
-const connectionString = process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/shiftflow?schema=public";
+const connectionString =
+  process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/shiftflow?schema=vitest";
 const pool = new Pool({ connectionString });
 
 export const testDb = new PrismaClient({
@@ -18,11 +19,9 @@ export const testDb = new PrismaClient({
 });
 
 export async function resetDatabase() {
-  await testDb.shiftAssignment.deleteMany();
-  await testDb.shift.deleteMany();
-  await testDb.event.deleteMany();
-  await testDb.employee.deleteMany();
-  await testDb.user.deleteMany();
+  await testDb.$executeRawUnsafe(
+    'TRUNCATE TABLE "ShiftAssignment", "Shift", "Event", "Employee", "User" RESTART IDENTITY CASCADE',
+  );
 }
 
 export async function disconnectTestDb() {

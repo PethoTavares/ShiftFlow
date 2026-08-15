@@ -1,8 +1,9 @@
 import Link from "next/link";
 
-import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { StatusMessage } from "@/components/ui/status-message";
 import { listEmployees } from "@/features/employees/queries";
 import { requireManager } from "@/lib/auth";
@@ -12,74 +13,112 @@ type EmployeesPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
+const filters = ["ALL", "ACTIVE", "INACTIVE"] as const;
+
 export const dynamic = "force-dynamic";
 
 export default async function EmployeesPage({ searchParams }: EmployeesPageProps) {
   await requireManager();
   const resolvedSearchParams = await searchParams;
   const filter = getQueryStringMessage(resolvedSearchParams.status) ?? "ALL";
+  const search = getQueryStringMessage(resolvedSearchParams.search) ?? "";
   const error = getQueryStringMessage(resolvedSearchParams.error);
   const success = getQueryStringMessage(resolvedSearchParams.success);
-  const employees = await listEmployees(filter);
+  const employees = await listEmployees(filter, search);
 
   return (
-    <div className="space-y-8">
+    <div className="app-shell">
       <PageHeader
         title="Employees"
-        description="Manage your workforce roster, profile details, and staffing availability."
-        action={
-          <Link href="/employees/new" className="rounded-xl bg-[var(--color-foreground)] px-4 py-2.5 text-sm font-medium text-white">
-            New employee
-          </Link>
-        }
+        description="Manage your workforce roster, check availability, and keep employee details clean and actionable."
+        action={<Link href="/employees/new" className={buttonVariants({})}>New employee</Link>}
       />
       <StatusMessage error={error} success={success} />
-      <div className="flex flex-wrap gap-2">
-        {["ALL", "ACTIVE", "INACTIVE"].map((value) => (
-          <Link
-            key={value}
-            href={value === "ALL" ? "/employees" : `/employees?status=${value}`}
-            className={`rounded-full px-3 py-1.5 text-sm ${filter === value ? "bg-[var(--color-foreground)] text-white" : "border border-[var(--color-border)] bg-white"}`}
-          >
-            {value}
-          </Link>
-        ))}
+
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-wrap gap-2">
+          {filters.map((value) => (
+            <Link
+              key={value}
+              href={value === "ALL" ? `/employees${search ? `?search=${encodeURIComponent(search)}` : ""}` : `/employees?status=${value}${search ? `&search=${encodeURIComponent(search)}` : ""}`}
+              className={filter === value ? "app-chip app-chip-active" : "app-chip"}
+            >
+              {value}
+            </Link>
+          ))}
+        </div>
+
+        <form className="w-full max-w-sm">
+          <label htmlFor="search" className="sr-only">Search employees</label>
+          <input
+            id="search"
+            name="search"
+            defaultValue={search}
+            placeholder="Search by name or email"
+            className="app-input"
+          />
+        </form>
       </div>
-      <section className="rounded-3xl border border-[var(--color-border)] bg-white shadow-sm">
+
+      <section className="app-panel overflow-hidden">
         {employees.length === 0 ? (
           <div className="p-6">
-            <EmptyState title="No employees found" description="Add employees to begin assigning them to shifts." />
+            <EmptyState
+              title="No employees found"
+              description={search ? "Try a different search or clear the filter." : "Add employees to begin assigning them to shifts."}
+              action={!search ? <Link href="/employees/new" className={buttonVariants({ variant: "secondary" })}>Add employee</Link> : undefined}
+            />
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead className="border-b border-[var(--color-border)] text-[var(--color-muted-foreground)]">
-                <tr>
-                  <th className="px-6 py-4 font-medium">Employee</th>
-                  <th className="px-6 py-4 font-medium">Phone</th>
-                  <th className="px-6 py-4 font-medium">Status</th>
-                  <th className="px-6 py-4 font-medium">Upcoming shifts</th>
-                </tr>
-              </thead>
-              <tbody>
-                {employees.map((employee) => (
-                  <tr key={employee.id} className="border-b border-[var(--color-border)] last:border-b-0">
-                    <td className="px-6 py-4">
-                      <Link href={`/employees/${employee.id}`} className="block">
-                        <p className="font-medium">{employee.user.name}</p>
-                        <p className="text-[var(--color-muted-foreground)]">{employee.user.email}</p>
-                      </Link>
-                    </td>
-                    <td className="px-6 py-4 text-[var(--color-muted-foreground)]">{employee.phone}</td>
-                    <td className="px-6 py-4">
-                      <Badge variant={employee.status === "ACTIVE" ? "success" : "danger"}>{employee.status}</Badge>
-                    </td>
-                    <td className="px-6 py-4 text-[var(--color-muted-foreground)]">{employee.assignments.length}</td>
+          <>
+            <div className="hidden lg:block">
+              <table className="app-table">
+                <thead>
+                  <tr>
+                    <th>Employee</th>
+                    <th>Phone</th>
+                    <th>Status</th>
+                    <th>Upcoming Shifts</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {employees.map((employee) => (
+                    <tr key={employee.id}>
+                      <td>
+                        <Link href={`/employees/${employee.id}`} className="block">
+                          <p className="font-medium">{employee.user.name}</p>
+                          <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">{employee.user.email}</p>
+                        </Link>
+                      </td>
+                      <td className="text-[var(--color-muted-foreground)]">{employee.phone || "Not provided"}</td>
+                      <td>
+                        <StatusBadge status={employee.status} />
+                      </td>
+                      <td className="text-[var(--color-muted-foreground)]">{employee.assignments.length}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="space-y-3 p-4 lg:hidden">
+              {employees.map((employee) => (
+                <Link key={employee.id} href={`/employees/${employee.id}`} className="app-list-row block">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="font-medium">{employee.user.name}</p>
+                      <p className="text-sm text-[var(--color-muted-foreground)]">{employee.user.email}</p>
+                      <p className="text-sm text-[var(--color-muted-foreground)]">{employee.phone || "No phone listed"}</p>
+                    </div>
+                    <StatusBadge status={employee.status} />
+                  </div>
+                  <p className="mt-4 text-sm text-[var(--color-muted-foreground)]">
+                    {employee.assignments.length} upcoming {employee.assignments.length === 1 ? "shift" : "shifts"}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          </>
         )}
       </section>
     </div>

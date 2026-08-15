@@ -42,7 +42,7 @@ export function SignInForm() {
       }}
     >
       <div className="space-y-2">
-        <label htmlFor="email" className="text-sm font-medium">
+        <label htmlFor="email" className="app-label">
           Email
         </label>
         <input
@@ -50,11 +50,11 @@ export function SignInForm() {
           name="email"
           type="email"
           required
-          className="focus-ring w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5"
+          className="app-input"
         />
       </div>
       <div className="space-y-2">
-        <label htmlFor="password" className="text-sm font-medium">
+        <label htmlFor="password" className="app-label">
           Password
         </label>
         <input
@@ -62,7 +62,7 @@ export function SignInForm() {
           name="password"
           type="password"
           required
-          className="focus-ring w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5"
+          className="app-input"
         />
       </div>
       {error ? (
