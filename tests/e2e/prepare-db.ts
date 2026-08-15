@@ -3,7 +3,6 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 
 import { PrismaClient } from "../../src/lib/generated/prisma/client";
-import { seedDatabase } from "../../prisma/seed-data";
 
 function requireEnv(name: string) {
   const value = process.env[name];
@@ -17,8 +16,6 @@ function requireEnv(name: string) {
 
 async function main() {
   const databaseUrl = requireEnv("DATABASE_URL");
-
-  await seedDatabase(databaseUrl);
 
   const prisma = new PrismaClient({
     adapter: new PrismaPg(new Pool({ connectionString: databaseUrl })),

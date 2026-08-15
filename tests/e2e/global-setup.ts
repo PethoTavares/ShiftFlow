@@ -17,5 +17,6 @@ export default async function setup() {
   process.env.E2E_DATABASE_URL = databaseUrl;
 
   runCommand(["npm", "run", "db:migrate"], databaseUrl);
+  runCommand(["npm", "run", "db:seed"], databaseUrl);
   runCommand(["npx", "tsx", "tests/e2e/prepare-db.ts"], databaseUrl);
 }

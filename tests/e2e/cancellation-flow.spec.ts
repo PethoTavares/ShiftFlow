@@ -19,51 +19,51 @@ async function signIn(page: Page, email: string, password: string) {
   await expect(page).toHaveURL(/\/dashboard(?:\?.*)?$/, { timeout: 15_000 });
 }
 
-async function signOut(page: Page) {
-  await page.getByRole("button", { name: "Sign out" }).click();
-  await expect(page).toHaveURL(/\/sign-in(?:\?.*)?$/, { timeout: 15_000 });
-}
-
-test("cancelled shifts disappear from the employee upcoming experience", async ({ page }) => {
+test("cancelled shifts disappear from the employee upcoming experience", async ({ browser }) => {
   const unique = Date.now();
-  const sidebar = page.locator("aside");
   const employeeName = `Cancel Flow Employee ${unique}`;
   const employeeEmail = `cancel.employee.${unique}@shiftflow.dev`;
   const eventName = `Cancel Flow Event ${unique}`;
   const shiftTitle = `Cancel Flow Shift ${unique}`;
 
-  await signIn(page, managerEmail, seededPassword);
+  const managerContext = await browser.newContext();
+  const employeeContext = await browser.newContext();
+  const managerPage = await managerContext.newPage();
+  const employeePage = await employeeContext.newPage();
+  const sidebar = managerPage.locator("aside");
+
+  await signIn(managerPage, managerEmail, seededPassword);
 
   await sidebar.getByRole("link", { name: "Employees", exact: true }).click();
-  await page.getByRole("link", { name: "New employee" }).click();
-  await page.getByLabel("Full name").fill(employeeName);
-  await page.getByLabel("Email").fill(employeeEmail);
-  await page.getByLabel("Phone").fill("2065550199");
-  await page.getByLabel("Temporary password").fill(seededPassword);
-  await page.getByRole("button", { name: "Create employee" }).click();
-  await expect(page.getByText("Employee created successfully.")).toBeVisible();
+  await managerPage.getByRole("link", { name: "New employee" }).click();
+  await managerPage.getByLabel("Full name").fill(employeeName);
+  await managerPage.getByLabel("Email").fill(employeeEmail);
+  await managerPage.getByLabel("Phone").fill("2065550199");
+  await managerPage.getByLabel("Temporary password").fill(seededPassword);
+  await managerPage.getByRole("button", { name: "Create employee" }).click();
+  await expect(managerPage.getByText("Employee created successfully.")).toBeVisible();
 
   await sidebar.getByRole("link", { name: "Events", exact: true }).click();
-  await page.getByRole("link", { name: "New event" }).click();
-  await page.getByLabel("Name").fill(eventName);
-  await page.getByLabel("Location").fill("Seattle Convention Center");
-  await page.getByLabel("Start date").fill("2026-08-30T08:00");
-  await page.getByLabel("End date").fill("2026-08-30T18:00");
-  await page.getByRole("button", { name: "Create event" }).click();
-  await expect(page.getByText("Event created successfully.")).toBeVisible();
+  await managerPage.getByRole("link", { name: "New event" }).click();
+  await managerPage.getByLabel("Name").fill(eventName);
+  await managerPage.getByLabel("Location").fill("Seattle Convention Center");
+  await managerPage.getByLabel("Start date").fill("2026-08-30T08:00");
+  await managerPage.getByLabel("End date").fill("2026-08-30T18:00");
+  await managerPage.getByRole("button", { name: "Create event" }).click();
+  await expect(managerPage.getByText("Event created successfully.")).toBeVisible();
 
   await sidebar.getByRole("link", { name: "Shifts", exact: true }).click();
-  await page.getByRole("link", { name: "New shift" }).click();
-  await page.getByLabel("Event").selectOption({ label: eventName });
-  await page.getByLabel("Title").fill(shiftTitle);
-  await page.getByLabel("Start time").fill("2026-08-30T09:00");
-  await page.getByLabel("End time").fill("2026-08-30T13:00");
-  await page.getByLabel("Required workers").fill("1");
-  await page.getByRole("button", { name: "Create shift" }).click();
-  await expect(page.getByText("Shift created successfully.")).toBeVisible();
-  await page.getByRole("link", { name: new RegExp(`^${escapeRegExp(shiftTitle)}`) }).click();
+  await managerPage.getByRole("link", { name: "New shift" }).click();
+  await managerPage.getByLabel("Event").selectOption({ label: eventName });
+  await managerPage.getByLabel("Title").fill(shiftTitle);
+  await managerPage.getByLabel("Start time").fill("2026-08-30T09:00");
+  await managerPage.getByLabel("End time").fill("2026-08-30T13:00");
+  await managerPage.getByLabel("Required workers").fill("1");
+  await managerPage.getByRole("button", { name: "Create shift" }).click();
+  await expect(managerPage.getByText("Shift created successfully.")).toBeVisible();
+  await managerPage.getByRole("link", { name: new RegExp(`^${escapeRegExp(shiftTitle)}`) }).click();
 
-  const employeeSelect = page.getByLabel("Employee", { exact: true });
+  const employeeSelect = managerPage.getByLabel("Employee", { exact: true });
   const employeeOptionValue = await employeeSelect.evaluate((select, email) => {
     const option = Array.from((select as HTMLSelectElement).options).find((candidate) => candidate.text.includes(email));
 
@@ -75,32 +75,28 @@ test("cancelled shifts disappear from the employee upcoming experience", async (
   }, employeeEmail);
 
   await employeeSelect.selectOption(employeeOptionValue);
-  await page.getByRole("button", { name: "Assign employee" }).click();
-  await expect(page.getByText("Employee assigned successfully.")).toBeVisible();
+  await managerPage.getByRole("button", { name: "Assign employee" }).click();
+  await expect(managerPage.getByText("Employee assigned successfully.")).toBeVisible();
 
-  await signOut(page);
+  await signIn(employeePage, employeeEmail, seededPassword);
+  await expect(employeePage.getByRole("heading", { name: "My dashboard" })).toBeVisible();
+  await expect(employeePage.getByText(shiftTitle).first()).toBeVisible();
+  await employeePage.getByRole("link", { name: "Schedule", exact: true }).click();
+  await expect(employeePage.getByText(shiftTitle).first()).toBeVisible();
 
-  await signIn(page, employeeEmail, seededPassword);
-  await expect(page.getByRole("heading", { name: "My dashboard" })).toBeVisible();
-  await expect(page.getByText(shiftTitle).first()).toBeVisible();
-  await page.getByRole("link", { name: "Schedule", exact: true }).click();
-  await expect(page.getByText(shiftTitle).first()).toBeVisible();
+  await managerPage.goto("/shifts");
+  await managerPage.getByRole("link", { name: new RegExp(`^${escapeRegExp(shiftTitle)}`) }).click();
 
-  await signOut(page);
+  const dialogPromise = managerPage.waitForEvent("dialog");
+  await Promise.all([
+    dialogPromise.then((dialog) => dialog.accept()),
+    managerPage.getByRole("button", { name: "Cancel shift" }).click(),
+  ]);
+  await expect(managerPage.getByText("CANCELLED", { exact: true })).toBeVisible();
 
-  await signIn(page, managerEmail, seededPassword);
-  await page.goto("/shifts");
-  await page.getByRole("link", { name: new RegExp(`^${escapeRegExp(shiftTitle)}`) }).click();
-
-  page.once("dialog", (dialog) => dialog.accept());
-  await page.getByRole("button", { name: "Cancel shift" }).click();
-  await expect(page.getByText("Shift cancelled.")).toBeVisible();
-
-  await signOut(page);
-
-  await signIn(page, employeeEmail, seededPassword);
-  await expect(page.getByRole("heading", { name: "My dashboard" })).toBeVisible();
-  await expect(page.getByText(shiftTitle)).toHaveCount(0);
-  await page.getByRole("link", { name: "Schedule", exact: true }).click();
-  await expect(page.getByText(shiftTitle)).toHaveCount(0);
+  await employeePage.goto("/dashboard");
+  await expect(employeePage.getByRole("heading", { name: "My dashboard" })).toBeVisible();
+  await expect(employeePage.getByText(shiftTitle)).toHaveCount(0);
+  await employeePage.getByRole("link", { name: "Schedule", exact: true }).click();
+  await expect(employeePage.getByText(shiftTitle)).toHaveCount(0);
 });
